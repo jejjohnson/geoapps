@@ -86,6 +86,9 @@ def add_detection(
         )
     marks = event_kind.validate_marks(marks)
     geom_expr = geom(geometry)
+    if geometry.get("type") in ("Polygon", "MultiPolygon"):
+        # provider outlines can self-intersect; keep only the repaired polygonal part
+        geom_expr = gf.ST_Multi(gf.ST_CollectionExtract(gf.ST_MakeValid(geom_expr), 3))
     now = now or datetime.now(UTC)
     age_h = max((now - observed_at).total_seconds() / 3600.0, 0.0)
     n_d = _would_notify(session, kind, geom_expr, marks.get("q_kg_h"))

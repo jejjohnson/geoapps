@@ -41,7 +41,7 @@ Registered steps:
 
 | Step | What it does |
 |---|---|
-| `import_mars_plumes` | Downloads the public [Eye on Methane](https://methanedata.unep.org/download-dataset) plume list (UNEP IMEO MARS, CC BY-NC-SA 4.0) and imports it: one detection per plume, one source per MARS source id, one sensor per satellite, with the dataset's checksum and licence. Rerunning it skips unchanged files and updates revised plumes that nobody has reviewed yet. |
+| `import_mars_plumes` | Downloads the public [Eye on Methane](https://methanedata.unep.org/download-dataset) plume list (UNEP IMEO MARS, CC BY-NC-SA 4.0) as GeoJSON and imports it: one detection per plume with its outline as the geometry and the source point as its origin, one source per MARS source id, one sensor per satellite, with the dataset's checksum and licence. Self-intersecting outlines are repaired on the way in. The CSV download (points only) also works. Rerunning it skips unchanged files and updates revised plumes that nobody has reviewed yet. |
 | `import_detections` | Your own detections from a GeoJSON FeatureCollection. |
 | `seed_demo` | Synthetic plumes, for tests and offline trials only. |
 
@@ -49,7 +49,7 @@ Every imported plume is born `predicted`. MARS has already reviewed its public p
 
 The MARS data is licensed for non-commercial use only, and anything derived from it must be shared under the same licence. The map shows the credit line for every dataset that contributed plumes.
 
-The map has three basemaps: streets (OpenFreeMap), imagery (EOX Sentinel-2 cloudless) and an offline Natural Earth map bundled with the app. If a remote basemap can't be reached, the map falls back to the offline one.
+The map has three basemaps: streets (OpenFreeMap), imagery (EOX Sentinel-2 cloudless) and an offline Natural Earth 1:10m map served by the app itself, with coasts, country and state lines, rivers, lakes, highways, urban areas and place names. If a remote basemap can't be reached, the map falls back to the offline one. `web/scripts/build-basemap.mjs` rebuilds the offline layers from Natural Earth (public domain) and Noto Sans glyphs (SIL OFL).
 
 Not built yet, in the order the design plan's roadmap takes them: drawing a redraw on the map, a facility inventory import (attribution has nothing to propose until facilities exist), the ingest half of the explorer, pgSTAC and Zarr through titiler.xarray, monitoring pipelines that record observations, the notebook client, GeoParquet exports, scheduled pipelines, outbound notifications and auth.
 

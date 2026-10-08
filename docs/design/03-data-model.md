@@ -204,7 +204,9 @@ ref.source        12 USA123  Oil and Gas  United States  POINT(−103.48 31.87)
 ref.xref          (unep-mars, source, USA123)    → source 12
                   (unep-mars, detection, 3f1c…)  → detection 901
 review.detection  901 ch4_plume  predicted  sensor 2  source 12  dataset 7
-                      POINT(−103.48 31.87)  q 1400 ± 600 kg/h
+                      outline: MULTIPOLYGON(…) from the GeoJSON feature
+                      origin:  POINT(−103.48 31.87) from lat/lon
+                      q 1400 ± 600 kg/h
 monitor.event     55  source 12  t_b = t_c = 14 Sep  open
 ```
 

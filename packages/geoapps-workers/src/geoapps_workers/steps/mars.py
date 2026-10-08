@@ -1,14 +1,18 @@
 """Import the public methane plumes of UNEP IMEO's Eye on Methane (MARS).
 
-The dataset is published as a ZIP of CSV (or of GeoJSON) on the Eye on Methane
-download page, under CC BY-NC-SA 4.0. Columns follow the published data
-dictionary (https://methanedata.unep.org/dict-mars-plumes):
+The dataset is published on the Eye on Methane download page as a ZIP of
+GeoJSON, whose features carry each plume's outline, and as a ZIP of CSV with
+the source point only; both under CC BY-NC-SA 4.0. The GeoJSON is the default.
+Properties follow the published data dictionary
+(https://methanedata.unep.org/dict-mars-plumes):
+
+    geometry (GeoJSON)          plume outline                  → detection geometry
 
     id_plume                    unique plume id                → xref (unep-mars, detection)
     source_name                 source id, e.g. country + 3 digits → ref.source via xref
     satellite                   satellite and agency           → ref.sensor
     tile_date                   observation time, ISO 8601     → observed_at
-    lat, lon                    source location, WGS84         → point geometry and origin
+    lat, lon                    source location, WGS84         → origin and ref.source point
     ch4_fluxrate(_std)          kg h⁻¹                         → marks.q_kg_h, q_sigma_kg_h
     wind_u, wind_v, wind_speed  m s⁻¹                          → marks.wind_*
     total_emission(_std)        t, transient events only       → marks.total_emission_*
@@ -42,6 +46,8 @@ from geoapps_db import repo
 from geoapps_workers.registry import StepContext, etl
 
 PROVIDER = "unep-mars"
+# the GeoJSON download carries each plume's outline; the CSV has only the source point
+MARS_GEOJSON_URL = "https://unepazeconomyadlsstorage.blob.core.windows.net/public/unep_methanedata_detected_plumes_geojson.zip"
 MARS_CSV_URL = "https://unepazeconomyadlsstorage.blob.core.windows.net/public/unep_methanedata_detected_plumes_csv.zip"
 LICENCE = "CC BY-NC-SA 4.0"
 ATTRIBUTION = "UNEP International Methane Emissions Observatory, Eye on Methane / MARS"
@@ -50,7 +56,8 @@ REQUIRED = ("id_plume", "lat", "lon", "tile_date")
 
 class MarsParams(BaseModel):
     url: str = Field(
-        default=MARS_CSV_URL, description="ZIP, CSV or GeoJSON URL of the public plume list"
+        default=MARS_GEOJSON_URL,
+        description="ZIP, GeoJSON or CSV URL of the public plume list; GeoJSON keeps plume outlines",
     )
     path: str | None = Field(default=None, description="Read a local file instead of the URL")
     accept_provider_validation: bool = Field(
@@ -88,15 +95,63 @@ def _records_from_csv(text: str) -> list[dict[str, Any]]:
     ]
 
 
+POLYGONAL = ("Polygon", "MultiPolygon")
+
+
+def _outline(g: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The plume outline in a feature's geometry: its polygons, gathered into one geometry."""
+    if not g:
+        return None
+    if g.get("type") in POLYGONAL:
+        return g
+    if g.get("type") == "GeometryCollection":
+        polys: list = []
+        for part in g.get("geometries") or []:
+            if part.get("type") == "Polygon":
+                polys.append(part["coordinates"])
+            elif part.get("type") == "MultiPolygon":
+                polys.extend(part["coordinates"])
+        if len(polys) == 1:
+            return {"type": "Polygon", "coordinates": polys[0]}
+        if polys:
+            return {"type": "MultiPolygon", "coordinates": polys}
+    return None
+
+
+def _first_point(g: dict[str, Any] | None) -> tuple[float, float] | None:
+    if not g:
+        return None
+    if g.get("type") == "Point":
+        return tuple(g["coordinates"][:2])
+    for part in g.get("geometries") or []:
+        if part.get("type") == "Point":
+            return tuple(part["coordinates"][:2])
+    return None
+
+
 def _records_from_geojson(text: str) -> list[dict[str, Any]]:
     out = []
     for f in json.loads(text).get("features", []):
         rec = {_norm(k): v for k, v in (f.get("properties") or {}).items()}
-        g = f.get("geometry") or {}
-        if g.get("type") == "Point" and ("lat" not in rec or "lon" not in rec):
-            rec["lon"], rec["lat"] = g["coordinates"][:2]
+        g = f.get("geometry")
+        rec["_outline"] = _outline(g)
+        pt = _first_point(g)
+        if pt and (_num(rec.get("lat")) is None or _num(rec.get("lon")) is None):
+            rec["lon"], rec["lat"] = pt
         out.append(rec)
     return out
+
+
+def _ring_centroid(outline: dict[str, Any]) -> tuple[float, float]:
+    """Vertex mean of the largest outer ring: a stand-in origin when a record has no lat/lon."""
+    rings = (
+        [outline["coordinates"][0]]
+        if outline["type"] == "Polygon"
+        else [p[0] for p in outline["coordinates"]]
+    )
+    ring = max(rings, key=len)
+    xs, ys = zip(*[(c[0], c[1]) for c in ring[:-1] or ring], strict=True)
+    return sum(xs) / len(xs), sum(ys) / len(ys)
 
 
 def read_records(blob: bytes, name: str) -> list[dict[str, Any]]:
@@ -164,8 +219,17 @@ def _bool(v: Any) -> bool | None:
 
 
 def to_detection(rec: dict[str, Any], p_assumed: float) -> dict[str, Any]:
-    """One MARS record → the fields of one detection, its source and its sensor."""
+    """One MARS record → the fields of one detection, its source and its sensor.
+
+    The detection's geometry is the plume outline when the record has one (GeoJSON),
+    else the source point; the point (MARS lat/lon, the source location) is its origin.
+    """
+    outline = rec.get("_outline")
     lat, lon = _num(rec.get("lat")), _num(rec.get("lon"))
+    origin_from = "lat_lon"
+    if (lat is None or lon is None) and outline:
+        lon, lat = _ring_centroid(outline)
+        origin_from = "outline_centroid"
     if lat is None or lon is None or not (-90 <= lat <= 90 and -180 <= lon <= 180):
         raise ValueError("missing or invalid lat/lon")
     observed = _time(rec.get("tile_date"))
@@ -187,6 +251,7 @@ def to_detection(rec: dict[str, Any], p_assumed: float) -> dict[str, Any]:
         "detection_institution": _text(rec.get("detection_institution")),
         "quantification_institution": _text(rec.get("quantification_institution")),
         "tile_background": _text(rec.get("tile_background")),
+        "origin_from": None if origin_from == "lat_lon" else origin_from,
         "last_update": _text(rec.get("last_update")),
         "insert_date": _text(rec.get("insert_date")),
     }
@@ -198,6 +263,7 @@ def to_detection(rec: dict[str, Any], p_assumed: float) -> dict[str, Any]:
         "sector": _text(rec.get("sector")),
         "lon": round(lon, 6),
         "lat": round(lat, 6),
+        "outline": outline,
         "observed_at": observed,
         "scene_id": _text(rec.get("tile")),
         "marks": {k: v for k, v in marks.items() if v is not None},
@@ -297,7 +363,7 @@ def import_mars_plumes(p: MarsParams, ctx: StepContext) -> dict:
                 det = repo.add_detection(
                     s,
                     kind="ch4_plume",
-                    geometry=point,
+                    geometry=row["outline"] or point,
                     origin=point,
                     marks=row["marks"],
                     attrs=row["attrs"],
@@ -334,6 +400,7 @@ def import_mars_plumes(p: MarsParams, ctx: StepContext) -> dict:
                     )
                 known_det[row["record_id"]] = det.id
                 n["imported"] += 1
+                n["with_outline"] += row["outline"] is not None
             except Exception as exc:
                 reasons[str(exc).splitlines()[0][:160]] += 1
         if (i + 1) % 2000 == 0:
@@ -347,6 +414,7 @@ def import_mars_plumes(p: MarsParams, ctx: StepContext) -> dict:
         "licence": p.licence,
         "rows": len(records),
         "imported": n["imported"],
+        "with_outline": n["with_outline"],
         "unchanged": n["unchanged"],
         "updated": n["updated"],
         "changed_after_review": n["changed_after_review"],

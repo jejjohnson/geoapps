@@ -70,3 +70,54 @@ def test_mapping_of_one_record():
     for bad, msg in ((rows[4], "lat/lon"), (rows[5], "tile_date")):
         with pytest.raises(ValueError, match=msg):
             to_detection(bad, 0.95)
+
+
+def _feature(pid, geometry, **props):
+    base = {
+        "id_plume": pid,
+        "source_name": "TST010",
+        "satellite": "EMIT (NASA)",
+        "tile_date": "2025-08-01T19:05:00Z",
+        "ch4_fluxrate": 1500,
+        "ch4_fluxrate_std": 400,
+        "country": "Testland",
+        "sector": "Oil and Gas",
+    }
+    return {"type": "Feature", "geometry": geometry, "properties": {**base, **props}}
+
+
+OUTLINE = {
+    "type": "Polygon",
+    "coordinates": [
+        [[-103.481, 31.870], [-103.470, 31.873], [-103.468, 31.869], [-103.481, 31.870]]
+    ],
+}
+
+
+def test_geojson_outline_is_the_geometry_and_lat_lon_the_origin():
+    fc = {
+        "type": "FeatureCollection",
+        "features": [
+            _feature("g1", OUTLINE, lat=31.870, lon=-103.481),
+            # outline and source point together in one collection
+            _feature(
+                "g2",
+                {
+                    "type": "GeometryCollection",
+                    "geometries": [OUTLINE, {"type": "Point", "coordinates": [-103.481, 31.870]}],
+                },
+            ),
+            # outline only: the origin falls back to the outline's centre, and says so
+            _feature("g3", OUTLINE),
+        ],
+    }
+    rows = [to_detection(r, 0.95) for r in read_records(json.dumps(fc).encode(), "plumes.geojson")]
+    assert [r["outline"]["type"] for r in rows] == ["Polygon"] * 3
+    assert (rows[0]["lon"], rows[0]["lat"]) == (-103.481, 31.87) and "origin_from" not in rows[0][
+        "attrs"
+    ]
+    assert (rows[1]["lon"], rows[1]["lat"]) == (-103.481, 31.87)
+    assert rows[2]["attrs"]["origin_from"] == "outline_centroid"
+    # the CSV has no outline: the source point is the geometry
+    csv_row = to_detection(read_records(FIXTURE.read_bytes(), FIXTURE.name)[0], 0.95)
+    assert csv_row["outline"] is None

@@ -154,3 +154,49 @@ def test_mars_accept_provider_validation_builds_events(db):
         ]
         ls = repo.freeze_label_set(s, "mars", analyst_prefix="provider:unep-mars")
         assert ls.n_labels == 4
+
+
+def test_mars_geojson_import_keeps_outlines(db, tmp_path):
+    from geoapps_db import repo, session_scope
+
+    outline = {
+        "type": "Polygon",
+        # a bow-tie: self-intersecting, as provider outlines sometimes are
+        "coordinates": [
+            [
+                [-103.48, 31.87],
+                [-103.47, 31.875],
+                [-103.47, 31.87],
+                [-103.48, 31.875],
+                [-103.48, 31.87],
+            ]
+        ],
+    }
+    fc = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": outline,
+                "properties": {
+                    "id_plume": "g-1",
+                    "source_name": "TST010",
+                    "satellite": "EMIT (NASA)",
+                    "tile_date": "2025-08-01T19:05:00Z",
+                    "lat": 31.87,
+                    "lon": -103.48,
+                    "ch4_fluxrate": 1500,
+                },
+            }
+        ],
+    }
+    path = tmp_path / "plumes.geojson"
+    path.write_text(json.dumps(fc))
+    out = _run("import_mars_plumes", {"path": str(path)})
+    assert out["imported"] == 1 and out["with_outline"] == 1
+    with session_scope() as s:
+        (f,) = repo.detections_geojson(s)["features"]
+        assert f["geometry"]["type"] == "MultiPolygon"  # repaired into two valid triangles
+        assert len(f["geometry"]["coordinates"]) == 2
+        src = repo.source_detail(s, f["properties"]["source_id"])
+        assert src["geometry"]["coordinates"] == [-103.48, 31.87]  # the source stays a point

@@ -22,3 +22,4 @@ geoapps.toml
 .idea/
 .vscode/
 *.tsbuildinfo
+web/.ne-cache/
