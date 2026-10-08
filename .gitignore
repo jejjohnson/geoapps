@@ -15,7 +15,7 @@ web/dist/
 # local instance
 geoapps.toml
 .env
-data/
+/data/
 
 # editors / os
 .DS_Store

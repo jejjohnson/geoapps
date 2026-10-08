@@ -21,8 +21,8 @@ export function JobsPanel({ onChanged }: Props) {
   useEffect(() => {
     api.etls().then((list) => {
       setEtls(list);
-      // a fresh install has no data, so offer the demo seed first
-      const first = list.find((e) => e.name === "seed_demo") ?? list[0];
+      // a fresh install has no data, so offer the public plume import first
+      const first = list.find((e) => e.name === "import_mars_plumes") ?? list[0];
       if (first) {
         setName(first.name);
         setParams(JSON.stringify(defaults(first.params_schema), null, 2));

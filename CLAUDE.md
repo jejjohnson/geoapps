@@ -1,10 +1,12 @@
 # Working on geoapps
 
-Read `docs/design/01-design-plan.md` before changing behaviour; the workstream letters (A–M) and gate ids (E4, H1, ...) used in code and tests come from it.
+Read `docs/design/01-design-plan.md` before changing behaviour; the workstream letters (A–M) and gate ids (E4, H1, ...) used in code and tests come from it. `docs/design/03-data-model.md` is the reference for tables.
 
 Rules the code relies on:
 
-- `geoapps-db` is the only package that writes to Postgres. API routes and worker steps call `geoapps_db.repo`; they never build their own INSERT or UPDATE.
+- `geoapps-db` is the only package that writes to Postgres. API routes and worker steps call `geoapps_db.repo`; they never build their own queries. Models and repo functions live in one module per schema and are re-exported from `geoapps_db.models` and `geoapps_db.repo`.
+- Facts that change over time carry `valid tstzrange`; a change closes the old range and opens a new row. Never edit a shipped migration; add one.
+- Imported data records its `core.dataset` (URL, licence, checksum) and an xref per provider record id.
 - `geoapps-core` has no I/O: no database, no HTTP, no files. Science and rules go there so they can be tested without Postgres.
 - Every detection is born `predicted`. Only `repo.record_verdict` changes its status, and only a validated detection raises alerts or goes downstream (gate E4).
 - Kinds plug in through `geoapps_core.kinds.register_kind`; core code never branches on a kind's name.

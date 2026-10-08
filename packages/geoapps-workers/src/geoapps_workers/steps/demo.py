@@ -1,4 +1,6 @@
-"""Synthetic plumes for trying the platform with no data at all.
+"""Synthetic plumes, for tests and for trying the platform with no network at all.
+
+For real data, run ``import_mars_plumes`` instead.
 
 The plumes sit around a handful of made-up well pads in the Permian Basin,
 the design doc's running example. Scene ids start with ``synthetic-`` so they
@@ -59,8 +61,10 @@ def seed_demo(p: SeedParams, ctx: StepContext) -> dict:
     """Create synthetic Permian well pads and predicted methane plumes to try the platform."""
     rng = np.random.default_rng(p.seed)
     now = datetime.now(UTC)
-    for name, lon, lat in PERMIAN_PADS:
-        repo.add_source(ctx.session, name, lon, lat, kind="well_pad", synthetic=True)
+    source_ids = [
+        repo.add_source(ctx.session, name, lon, lat, source_type="well_pad", synthetic=True).id
+        for name, lon, lat in PERMIAN_PADS
+    ]
     for i in range(p.n):
         _, lon, lat = PERMIAN_PADS[i % len(PERMIAN_PADS)]
         q = float(rng.lognormal(mean=math.log(600), sigma=0.8))
@@ -79,6 +83,7 @@ def seed_demo(p: SeedParams, ctx: StepContext) -> dict:
             },
             observed_at=now - timedelta(hours=float(rng.uniform(0, 24 * p.days))),
             scene_id=f"synthetic-{p.seed}-{i:03d}",
+            source_id=source_ids[i % len(PERMIAN_PADS)],
             run_id=ctx.run_id,
         )
     ctx.info(f"created {p.n} synthetic plumes and {len(PERMIAN_PADS)} sources")

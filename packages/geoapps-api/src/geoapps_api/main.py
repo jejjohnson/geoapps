@@ -3,8 +3,11 @@
 Routes (all under /api):
     health, stats, config, kinds                  instance basics
     detections, queue, detections/{id}/verdict    app 1, validation (E)
-    sources                                       reference layers
-    watches, alerts                               app 3, watchlists and alerts (G3)
+    sources, sources/{id}, facilities, sensors    reference layers and one source's history
+    events                                        episodes chained from validated detections
+    sources/{id}/propose, attributions/{id}       app 2, attribution proposals and decisions (F)
+    datasets                                      provenance and licences, for map credits
+    watches, alerts, feedback                     app 3, watchlists and alerts (G3)
     etl, etl/{name}/jobs, jobs/{id}               registered steps and jobs (H1, K)
     explore/search                                catalog explorer, search only (H2)
 
@@ -115,11 +118,12 @@ def detections(
     session: DB,
     status: Annotated[str | None, Query(pattern="^(predicted|validated|rejected)$")] = None,
     kind: str | None = None,
+    source_id: int | None = None,
     bbox: str | None = None,
-    limit: Annotated[int, Query(ge=1, le=20000)] = 5000,
+    limit: Annotated[int, Query(ge=1, le=50000)] = 20000,
 ):
     return repo.detections_geojson(
-        session, status=status, kind=kind, bbox=parse_bbox(bbox), limit=limit
+        session, status=status, kind=kind, source_id=source_id, bbox=parse_bbox(bbox), limit=limit
     )
 
 
@@ -155,6 +159,60 @@ def sources(session: DB):
     return repo.sources_geojson(session)
 
 
+@app.get("/api/sources/{source_id}", response_model=S.SourceDetail)
+def source(source_id: int, session: DB):
+    out = repo.source_detail(session, source_id)
+    if out is None:
+        raise HTTPException(404, f"source {source_id} not found")
+    return out
+
+
+@app.get("/api/facilities", response_model=S.FeatureCollection)
+def facilities(session: DB):
+    return repo.facilities_geojson(session)
+
+
+@app.get("/api/sensors", response_model=list[S.SensorOut])
+def sensors(session: DB):
+    return repo.list_sensors(session)
+
+
+@app.get("/api/events", response_model=list[S.EventOut])
+def events(
+    session: DB,
+    status: Annotated[str | None, Query(pattern="^(open|closed)$")] = None,
+    limit: Annotated[int, Query(ge=1, le=5000)] = 500,
+):
+    return repo.list_events(session, status=status, limit=limit)
+
+
+@app.get("/api/datasets", response_model=list[S.DatasetOut])
+def datasets(session: DB):
+    return repo.list_datasets(session)
+
+
+# ── app 2: attribution ──────────────────────────────────────────────────────
+@app.post("/api/sources/{source_id}/propose", response_model=list[S.Proposal])
+def propose(source_id: int, session: DB, radius_m: Annotated[float, Query(gt=0, le=20000)] = 2000):
+    try:
+        return repo.propose_source_facilities(session, source_id, radius_m=radius_m)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from None
+
+
+@app.post("/api/attributions/{link_id}", response_model=S.AttributionLink)
+def decide(link_id: int, body: S.DecisionIn, session: DB, user: User):
+    try:
+        link = repo.decide_proposal(
+            session, link_id, confirm=body.confirm, decided_by=user, valid_from=body.valid_from
+        )
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from None
+    return next(lk for lk in repo.links_for_source(session, link.source_id) if lk["id"] == link.id)
+
+
 # ── app 3: watchlists and alerts ────────────────────────────────────────────
 @app.get("/api/watches", response_model=S.FeatureCollection)
 def watches(session: DB, user: User, mine: bool = True):
@@ -187,10 +245,15 @@ def alerts(session: DB, user: User, mine: bool = True):
 @app.patch("/api/alerts/{alert_id}", response_model=S.AlertOut)
 def patch_alert(alert_id: int, body: S.AlertPatch, session: DB, user: User):
     try:
-        repo.set_alert_state(session, alert_id, body.state, body.reason)
+        repo.set_alert_state(session, alert_id, body.state, body.reason, by=user)
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from None
     return next(a for a in repo.list_alerts(session) if a["id"] == alert_id)
+
+
+@app.get("/api/feedback", response_model=list[S.FeedbackOut])
+def feedback(session: DB):
+    return repo.list_feedback(session)
 
 
 # ── registered steps and jobs ───────────────────────────────────────────────

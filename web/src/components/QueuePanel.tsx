@@ -5,6 +5,7 @@ type Props = {
   queue: Feature[];
   selectedId: number | null;
   onSelect: (id: number) => void;
+  onOpenSource: (id: number) => void;
   onChanged: (message: string) => void;
 };
 
@@ -17,7 +18,7 @@ function ageHours(iso: unknown): string {
 }
 
 /** App 1: the analyst's validation queue, highest priority first. A human verdict is final. */
-export function QueuePanel({ queue, selectedId, onSelect, onChanged }: Props) {
+export function QueuePanel({ queue, selectedId, onSelect, onOpenSource, onChanged }: Props) {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,8 +71,14 @@ export function QueuePanel({ queue, selectedId, onSelect, onChanged }: Props) {
           <dl className="marks">
             <dt>Flux</dt>
             <dd>
-              {fmt(current.properties?.q_kg_h)} ± {fmt(current.properties?.q_sigma_kg_h)} kg/h
+              {current.properties?.q_kg_h == null
+                ? "not quantified"
+                : `${fmt(current.properties?.q_kg_h)} ± ${fmt(current.properties?.q_sigma_kg_h)} kg/h`}
             </dd>
+            <dt>Sensor</dt>
+            <dd>{String(current.properties?.sensor ?? "—")}</dd>
+            <dt>Observed</dt>
+            <dd>{String(current.properties?.observed_at ?? "").slice(0, 16).replace("T", " ")} UTC</dd>
             <dt>Probability</dt>
             <dd>{fmt(current.properties?.p, 2)}</dd>
             <dt>Viability</dt>
@@ -81,7 +88,17 @@ export function QueuePanel({ queue, selectedId, onSelect, onChanged }: Props) {
             <dt>Age</dt>
             <dd>{ageHours(current.properties?.observed_at)}</dd>
             <dt>Scene</dt>
-            <dd className="mono">{String(current.properties?.scene_id ?? "—")}</dd>
+            <dd className="mono ellipsis">{String(current.properties?.scene_id ?? "—")}</dd>
+            {current.properties?.source_id != null && (
+              <>
+                <dt>Source</dt>
+                <dd>
+                  <button className="link" onClick={() => onOpenSource(current.properties!.source_id as number)}>
+                    #{String(current.properties.source_id)} history →
+                  </button>
+                </dd>
+              </>
+            )}
           </dl>
           <input
             className="input"
@@ -104,14 +121,14 @@ export function QueuePanel({ queue, selectedId, onSelect, onChanged }: Props) {
         </div>
       ) : (
         <p className="empty">
-          {queue.length ? "Pick a plume from the list or the map." : "Nothing to validate. Seed demo data from the Jobs tab."}
+          {queue.length ? "Pick a plume from the list or the map." : "Nothing to validate. Import plumes from the Jobs tab."}
         </p>
       )}
       <ol className="list">
         {queue.map((f) => (
           <li key={f.id} className={f.id === selectedId ? "sel" : ""} onClick={() => onSelect(f.id as number)}>
             <span className="mono">#{f.id}</span>
-            <span>{fmt(f.properties?.q_kg_h)} kg/h</span>
+            <span>{f.properties?.q_kg_h == null ? "—" : `${fmt(f.properties?.q_kg_h)} kg/h`}</span>
             <span className="muted">{ageHours(f.properties?.observed_at)}</span>
             <span className="prio">{fmt(f.properties?.priority, 2)}</span>
           </li>

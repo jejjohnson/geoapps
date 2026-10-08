@@ -22,7 +22,12 @@ def database_url() -> str:
 
 @lru_cache(maxsize=4)
 def get_engine(url: str | None = None) -> Engine:
-    return create_engine(url or database_url(), pool_pre_ping=True, future=True)
+    # sessions run in UTC so timestamps read back the same wherever the server is
+    return create_engine(
+        url or database_url(),
+        pool_pre_ping=True,
+        connect_args={"options": "-c timezone=UTC"},
+    )
 
 
 @contextmanager

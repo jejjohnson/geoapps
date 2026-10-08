@@ -140,6 +140,125 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sources/{source_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Source */
+        get: operations["source_api_sources__source_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/facilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Facilities */
+        get: operations["facilities_api_facilities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sensors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sensors */
+        get: operations["sensors_api_sensors_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Events */
+        get: operations["events_api_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Datasets */
+        get: operations["datasets_api_datasets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sources/{source_id}/propose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Propose */
+        post: operations["propose_api_sources__source_id__propose_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/attributions/{link_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide */
+        post: operations["decide_api_attributions__link_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/watches": {
         parameters: {
             query?: never;
@@ -190,6 +309,23 @@ export interface paths {
         head?: never;
         /** Patch Alert */
         patch: operations["patch_alert_api_alerts__alert_id__patch"];
+        trace?: never;
+    };
+    "/api/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Feedback */
+        get: operations["feedback_api_feedback_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/etl": {
@@ -299,6 +435,27 @@ export interface components {
              */
             reason?: string | null;
         };
+        /** AttributionLink */
+        AttributionLink: {
+            /** Id */
+            id: number;
+            /** Facility Id */
+            facility_id: number;
+            /** Facility */
+            facility: string;
+            /** Score */
+            score: number | null;
+            /** Method */
+            method: string;
+            /** Status */
+            status: string;
+            /** Valid From */
+            valid_from: string | null;
+            /** Valid To */
+            valid_to: string | null;
+            /** Decided By */
+            decided_by: string | null;
+        };
         /** CatalogSource */
         CatalogSource: {
             /** Name */
@@ -327,6 +484,37 @@ export interface components {
             /** Sources */
             sources: components["schemas"]["CatalogSource"][];
         };
+        /** DatasetOut */
+        DatasetOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Url */
+            url: string | null;
+            /** Licence */
+            licence: string;
+            /** Attribution */
+            attribution: string | null;
+            /** Sha256 */
+            sha256: string;
+            /** N Records */
+            n_records: number | null;
+            /** N Detections */
+            n_detections: number;
+            /** Fetched At */
+            fetched_at: string | null;
+        };
+        /** DecisionIn */
+        DecisionIn: {
+            /** Confirm */
+            confirm: boolean;
+            /**
+             * Valid From
+             * @description When the link starts; open-ended
+             */
+            valid_from?: string | null;
+        };
         /** EtlOut */
         EtlOut: {
             /** Name */
@@ -341,6 +529,46 @@ export interface components {
             };
             /** Writes */
             writes: string[];
+        };
+        /** EventOut */
+        EventOut: {
+            /** Id */
+            id: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "closed";
+            /**
+             * T A
+             * @description Last clear look before the event, if observed
+             */
+            t_a: string | null;
+            /**
+             * T B
+             * @description First detection
+             */
+            t_b: string;
+            /**
+             * T C
+             * @description Last detection
+             */
+            t_c: string;
+            /**
+             * T D
+             * @description First clear look after the event, if observed
+             */
+            t_d: string | null;
+            /** N Detections */
+            n_detections: number;
+            /** Q Mean Kg H */
+            q_mean_kg_h: number | null;
+            /** Q Sigma Kg H */
+            q_sigma_kg_h: number | null;
+            /** Source Id */
+            source_id?: number | null;
+            /** Kind */
+            kind?: string | null;
         };
         /** Feature */
         Feature: {
@@ -371,6 +599,25 @@ export interface components {
             type: "FeatureCollection";
             /** Features */
             features: components["schemas"]["Feature"][];
+        };
+        /** FeedbackOut */
+        FeedbackOut: {
+            /** Id */
+            id: number;
+            /** Author */
+            author: string;
+            /** About */
+            about: string;
+            /** About Id */
+            about_id: number;
+            /** Kind */
+            kind: string;
+            /** Body */
+            body: string | null;
+            /** Action */
+            action: string | null;
+            /** Created At */
+            created_at: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -431,6 +678,85 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** Proposal */
+        Proposal: {
+            /** Id */
+            id: number;
+            /** Facility Id */
+            facility_id: number;
+            /** Score */
+            score: number;
+            /** Distance M */
+            distance_m: number;
+        };
+        /** SensorOut */
+        SensorOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Platform */
+            platform: string | null;
+            /** Agency */
+            agency: string | null;
+            /** Sensor Type */
+            sensor_type: string | null;
+            /** N Detections */
+            n_detections: number;
+        };
+        /** SourceDetail */
+        SourceDetail: {
+            /** Id */
+            id: number;
+            /** Geometry */
+            geometry: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Source Type */
+            source_type: string;
+            /** Sector */
+            sector: string | null;
+            /** Country */
+            country: string | null;
+            /** Status */
+            status: string;
+            /** First Seen */
+            first_seen: string | null;
+            /** Last Seen */
+            last_seen: string | null;
+            /** Attrs */
+            attrs: {
+                [key: string]: unknown;
+            };
+            /** Xrefs */
+            xrefs: components["schemas"]["Xref"][];
+            /** Detections */
+            detections: components["schemas"]["SourceDetection"][];
+            /** Events */
+            events: components["schemas"]["EventOut"][];
+            /** Attributions */
+            attributions: components["schemas"]["AttributionLink"][];
+            who: components["schemas"]["Who"] | null;
+        };
+        /** SourceDetection */
+        SourceDetection: {
+            /** Id */
+            id: number;
+            /** Status */
+            status: string;
+            /** Observed At */
+            observed_at: string;
+            /** Q Kg H */
+            q_kg_h: number | null;
+            /** Q Sigma Kg H */
+            q_sigma_kg_h: number | null;
+            /** Sensor Id */
+            sensor_id: number | null;
+            /** Event Id */
+            event_id: number | null;
+        };
         /** Stats */
         Stats: {
             /** Predicted */
@@ -439,6 +765,8 @@ export interface components {
             validated: number;
             /** Rejected */
             rejected: number;
+            /** Sources */
+            sources: number;
             /** Alerts */
             alerts: number;
             /** Queued Jobs */
@@ -506,6 +834,40 @@ export interface components {
         WatchOut: {
             /** Id */
             id: number;
+        };
+        /** Who */
+        Who: {
+            /** At */
+            at: string;
+            /** Facility */
+            facility: {
+                [key: string]: unknown;
+            };
+            /** Asset */
+            asset: {
+                [key: string]: unknown;
+            } | null;
+            /** Operator */
+            operator: {
+                [key: string]: unknown;
+            } | null;
+            /** Owners */
+            owners: {
+                [key: string]: unknown;
+            }[];
+            /** Governments */
+            governments: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** Xref */
+        Xref: {
+            /** Provider */
+            provider: string;
+            /** Record Id */
+            record_id: string;
+            /** Match Score */
+            match_score: number | null;
         };
     };
     responses: never;
@@ -603,6 +965,7 @@ export interface operations {
             query?: {
                 status?: string | null;
                 kind?: string | null;
+                source_id?: number | null;
                 bbox?: string | null;
                 limit?: number;
             };
@@ -717,6 +1080,199 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FeatureCollection"];
+                };
+            };
+        };
+    };
+    source_api_sources__source_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    facilities_api_facilities_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureCollection"];
+                };
+            };
+        };
+    };
+    sensors_api_sensors_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SensorOut"][];
+                };
+            };
+        };
+    };
+    events_api_events_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    datasets_api_datasets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetOut"][];
+                };
+            };
+        };
+    };
+    propose_api_sources__source_id__propose_post: {
+        parameters: {
+            query?: {
+                radius_m?: number;
+            };
+            header?: never;
+            path: {
+                source_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Proposal"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_api_attributions__link_id__post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-geoapps-user"?: string | null;
+            };
+            path: {
+                link_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttributionLink"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -855,6 +1411,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    feedback_api_feedback_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackOut"][];
                 };
             };
         };

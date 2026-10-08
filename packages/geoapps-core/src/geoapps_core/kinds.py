@@ -20,12 +20,27 @@ Validation = Literal["per_snapshot", "per_event", "trusted_source"]
 
 
 class PlumeMarks(BaseModel):
-    """What one trace-gas plume detection measures."""
+    """What one trace-gas plume detection measures.
 
-    q_kg_h: float = Field(ge=0, description="Flux estimate Q̂, kg h⁻¹")
-    q_sigma_kg_h: float = Field(ge=0, description="Flux uncertainty σ_Q, kg h⁻¹")
+    A plume can be detected before it is quantified, so the flux is optional;
+    an unquantified plume ranks as if Q̂ = Q_ref in the queue.
+    """
+
+    q_kg_h: float | None = Field(default=None, ge=0, description="Flux estimate Q̂, kg h⁻¹")
+    q_sigma_kg_h: float | None = Field(
+        default=None, ge=0, description="Flux uncertainty σ_Q, kg h⁻¹"
+    )
     p: float = Field(ge=0, le=1, description="Calibrated probability the plume is real")
     viability: float = Field(default=1.0, ge=0, le=1, description="Scene viability v_d")
+    wind_u_m_s: float | None = Field(default=None, description="Eastward wind u₁₀, m s⁻¹")
+    wind_v_m_s: float | None = Field(default=None, description="Northward wind v₁₀, m s⁻¹")
+    wind_speed_m_s: float | None = Field(default=None, ge=0, description="Wind speed |u₁₀|, m s⁻¹")
+    total_emission_t: float | None = Field(
+        default=None, ge=0, description="Total mass of a transient event, t"
+    )
+    total_emission_sigma_t: float | None = Field(
+        default=None, ge=0, description="Its uncertainty, t"
+    )
 
 
 @dataclass(frozen=True)
@@ -47,8 +62,15 @@ class EventKind:
     publish: PublishPolicy = field(default_factory=PublishPolicy)
 
     def validate_marks(self, marks: dict) -> dict:
-        """Raise pydantic.ValidationError if the marks do not fit this kind."""
-        return self.marks.model_validate(marks).model_dump()
+        """Raise pydantic.ValidationError if the marks do not fit this kind; drop unset fields."""
+        return self.marks.model_validate(marks).model_dump(exclude_none=True)
+
+    def accepts_geometry(self, geometry_type: str) -> bool:
+        """A snapshot is stored as the kind's outline, or as a point when only its location is known."""
+        allowed = (
+            {"Point", "MultiPoint"} if self.geometry == "Point" else {"Polygon", "MultiPolygon"}
+        )
+        return geometry_type in allowed | {"Point"}
 
 
 _REGISTRY: dict[str, EventKind] = {}

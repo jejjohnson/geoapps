@@ -17,6 +17,12 @@ export type KindOut = S["KindOut"];
 export type ClientConfig = S["ClientConfig"];
 export type CatalogSource = S["CatalogSource"];
 export type Stats = S["Stats"];
+export type DatasetOut = S["DatasetOut"];
+export type SensorOut = S["SensorOut"];
+export type EventOut = S["EventOut"];
+export type SourceDetail = S["SourceDetail"];
+export type Proposal = S["Proposal"];
+export type AttributionLink = S["AttributionLink"];
 
 export type BBox = [number, number, number, number];
 
@@ -85,11 +91,22 @@ export const api = {
   kinds: () => call<KindOut[]>("GET", "/api/kinds"),
 
   // app 1: validation
-  detections: (o: { status?: string; kind?: string; bbox?: BBox; limit?: number } = {}) =>
+  detections: (o: { status?: string; kind?: string; source_id?: number; bbox?: BBox; limit?: number } = {}) =>
     call<FeatureCollection>("GET", `/api/detections${qs({ ...o, bbox: bboxParam(o.bbox) })}`),
   queue: (o: { kind?: string; limit?: number } = {}) => call<FeatureCollection>("GET", `/api/queue${qs(o)}`),
   verdict: (id: number, body: VerdictIn) => call<VerdictOut>("POST", `/api/detections/${id}/verdict`, body),
   sources: () => call<FeatureCollection>("GET", "/api/sources"),
+  source: (id: number) => call<SourceDetail>("GET", `/api/sources/${id}`),
+  facilities: () => call<FeatureCollection>("GET", "/api/facilities"),
+  sensors: () => call<SensorOut[]>("GET", "/api/sensors"),
+  events: (o: { status?: string; limit?: number } = {}) => call<EventOut[]>("GET", `/api/events${qs(o)}`),
+  datasets: () => call<DatasetOut[]>("GET", "/api/datasets"),
+
+  // app 2: attribution
+  propose: (sourceId: number, radiusM = 2000) =>
+    call<Proposal[]>("POST", `/api/sources/${sourceId}/propose${qs({ radius_m: radiusM })}`),
+  decide: (linkId: number, confirm: boolean, validFrom?: string) =>
+    call<AttributionLink>("POST", `/api/attributions/${linkId}`, { confirm, valid_from: validFrom ?? null }),
 
   // app 3: watchlists and alerts
   watches: () => call<FeatureCollection>("GET", "/api/watches"),

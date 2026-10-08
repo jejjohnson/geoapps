@@ -1,7 +1,7 @@
 """Bring your own detections: import a GeoJSON FeatureCollection as predicted detections.
 
 This is the first bring-your-own-data path (workstream M2). Each feature needs
-a Polygon geometry and properties holding the kind's marks plus an observation
+a geometry (the kind's outline, or a Point) and properties holding the kind's marks plus an observation
 time, for example::
 
     {"type": "Feature",
@@ -49,9 +49,12 @@ def import_detections(p: ImportParams, ctx: StepContext) -> dict:
     for i, feat in enumerate(data.get("features", [])):
         props = dict(feat.get("properties") or {})
         geom = feat.get("geometry") or {}
-        if geom.get("type") != kind.geometry:
+        if not kind.accepts_geometry(geom.get("type", "")):
             skipped.append(
-                {"index": i, "reason": f"geometry {geom.get('type')} is not {kind.geometry}"}
+                {
+                    "index": i,
+                    "reason": f"geometry {geom.get('type')} is not {kind.geometry} or Point",
+                }
             )
             continue
         try:

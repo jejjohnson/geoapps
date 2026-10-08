@@ -7,30 +7,19 @@ migration replayed, so tests also exercise the Alembic path.
 import os
 
 import pytest
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
+from geoapps_db.testing import reset_database
+
 URL = os.environ.get("GEOAPPS_TEST_DATABASE_URL")
-
-
-def _reset(url: str) -> None:
-    engine = create_engine(url)
-    with engine.begin() as conn:
-        for schema in ("notify", "review", "ref", "core"):
-            conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
-    engine.dispose()
-    from alembic import command
-
-    from geoapps_db.cli import alembic_config
-
-    command.upgrade(alembic_config(url), "head")
 
 
 @pytest.fixture()
 def db_url():
     if not URL:
         pytest.skip("set GEOAPPS_TEST_DATABASE_URL to run database tests")
-    _reset(URL)
+    reset_database(URL)
     return URL
 
 

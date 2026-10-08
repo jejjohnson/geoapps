@@ -38,6 +38,12 @@ def bearing_deg(lon1: ArrayLike, lat1: ArrayLike, lon2: ArrayLike, lat2: ArrayLi
     return np.degrees(np.arctan2(y, x)) % 360.0
 
 
+def wind_to_deg(u: ArrayLike, v: ArrayLike) -> NDArray:
+    """Bearing the wind blows toward, degrees clockwise from north, from (u east, v north)."""
+    # φ = atan2(u, v) mod 360
+    return np.degrees(np.arctan2(np.asarray(u, dtype=float), np.asarray(v, dtype=float))) % 360.0
+
+
 def candidate_weights(
     distance_m: ArrayLike,
     bearing_to_origin_deg: ArrayLike,
