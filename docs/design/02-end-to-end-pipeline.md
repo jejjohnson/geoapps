@@ -124,6 +124,8 @@ Each kind swaps the five kind-specific steps and keeps the rest; a kind that rea
 | Heavy rain | Skipped: the input is a precipitation product in Zarr | Footprint where accumulation exceeds a threshold or return period | Accumulation, peak rate, return period (xtremax) | Basin, admin region | Contiguous in space and time |
 | Tropical cyclone | Skipped, or an intensity product | Centre and wind radii per snapshot | Max wind, central pressure, size | Landfall regions | The snapshots of one system, joined by the tracker |
 
+Each row is walked through in full, with its equations and what geoapps still lacks for it, in [`walkthroughs/`](walkthroughs/README.md).
+
 Steps 1–4, 8, 10, 11, 13 and 14 and the retrain loop are unchanged for every kind. Steps 3 and 4 vary with the sensor (SAR calibration and speckle filtering, for example), not with the kind, so every kind using a sensor shares them.
 
 ## Design constraints

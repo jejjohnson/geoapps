@@ -2,6 +2,7 @@
 
 How the general platform is used for one event kind, methane (CH₄) plumes, and how to run it on public data.
 The other design documents use plumes as their running example; this page is the practical side of that: the importers, the data they bring, and what to watch out for.
+The other kinds have walkthroughs of their own in [`walkthroughs/`](walkthroughs/README.md).
 
 ## 1. Why plumes
 

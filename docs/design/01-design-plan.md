@@ -805,6 +805,8 @@ class EventKind:                                 # proposed (L)
 
 The full pipeline, step by step, and what each kind changes: End-to-end pipeline
 
+One walkthrough per kind, from the data to the alert: [`walkthroughs/`](walkthroughs/README.md)
+
 ## Workstream M: one codebase runs from a laptop to a team, on your own data
 
 geoapps ships as an app, not a dataset: an instance is configured with its data sources, storage, executors and users, and the same code runs as a single-user local install or a shared team deployment.

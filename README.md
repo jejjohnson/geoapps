@@ -59,7 +59,16 @@ Core tables and apps never branch on what an event is. A kind registers:
 - **entities** it may be attributed to;
 - **publication policy**: whether and how validated events may be exported.
 
-Methane plumes are the kind implemented first and the running example in the design documents ([`04-running-example-methane.md`](docs/design/04-running-example-methane.md) shows it on public data). Other kinds plug in through `geoapps_core.kinds.register_kind` with their own steps; sensitive kinds, such as conflict events, are out of scope.
+Methane plumes are the kind implemented first and the running example in the design documents ([`04-running-example-methane.md`](docs/design/04-running-example-methane.md) shows it on public data). [Walkthroughs](docs/design/walkthroughs/README.md) cover the other kinds discussed so far:
+
+| Kind | Snapshot | Linked into events by | Attributed to |
+|---|---|---|---|
+| [Trace-gas plumes](docs/design/walkthroughs/01-other-trace-gases.md) (CH₄, CO₂, NO₂, SO₂) | outline + source point | same source over passes | facility, operator, government |
+| [Oil spills](docs/design/walkthroughs/02-oil-spills.md) | slick outline | overlap after drift | vessel, platform, pipeline |
+| [Floods](docs/design/walkthroughs/03-floods.md) | flood extent per pass | overlap within a basin | basin, admin region |
+| [Heavy rain](docs/design/walkthroughs/04-heavy-rain.md) | footprint per time step | contiguous in space and time | basin, admin region |
+| [Tropical cyclones](docs/design/walkthroughs/05-tropical-cyclones.md) | centre + wind radii | the system's tracker | landfall regions |
+ Other kinds plug in through `geoapps_core.kinds.register_kind` with their own steps; sensitive kinds, such as conflict events, are out of scope.
 
 ## Design
 
@@ -67,6 +76,7 @@ Methane plumes are the kind implemented first and the running example in the des
 - [`02-end-to-end-pipeline.md`](docs/design/02-end-to-end-pipeline.md): one event from scene to alert in 14 steps, and how the other kinds fit the same pipeline.
 - [`03-data-model.md`](docs/design/03-data-model.md): datasets, detections, sources, events, facilities, assets and orgs, with validity ranges, provenance and the constraints the database enforces.
 - [`04-running-example-methane.md`](docs/design/04-running-example-methane.md): the methane plume kind, the public Eye on Methane import, and how to try it.
+- [`walkthroughs/`](docs/design/walkthroughs/README.md): the same path, scene to alert, for other trace gases, oil spills, floods, heavy rain and tropical cyclones, with what each kind plugs in and what geoapps still lacks for it.
 
 ## What is here
 
