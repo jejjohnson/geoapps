@@ -1,0 +1,45 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    services:
+      postgis:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: geoapps
+          POSTGRES_PASSWORD: geoapps
+          POSTGRES_DB: geoapps_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U geoapps -d geoapps_test"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      GEOAPPS_TEST_DATABASE_URL: postgresql+psycopg://geoapps:geoapps@localhost:5432/geoapps_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - run: uv run ruff check packages
+      - run: uv run ruff format --check packages
+      - run: uv run pytest
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run build

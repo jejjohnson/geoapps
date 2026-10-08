@@ -1,0 +1,71 @@
+# Local profile: the whole platform on one machine.
+#   cp geoapps.toml.example geoapps.toml
+#   docker compose -f compose.local.yml up --build
+# web http://localhost:5173 · api http://localhost:8000/api/docs · titiler http://localhost:8001
+name: geoapps
+
+x-python: &python
+  build: .
+  environment:
+    GEOAPPS_DATABASE_URL: postgresql+psycopg://geoapps:geoapps@db:5432/geoapps
+    GEOAPPS_CONFIG: /config/geoapps.toml
+    # the browser fetches tiles from titiler directly, so this is the host-side URL
+    GEOAPPS_TITILER_URL: http://localhost:8001
+  volumes:
+    - ./geoapps.toml:/config/geoapps.toml:ro
+    - ./data:/data/geoapps
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: geoapps
+      POSTGRES_PASSWORD: geoapps
+      POSTGRES_DB: geoapps
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geoapps -d geoapps"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    <<: *python
+    command: ["geoapps-db", "upgrade"]
+    depends_on:
+      db: { condition: service_healthy }
+    restart: "no"
+
+  api:
+    <<: *python
+    command: ["geoapps-api"]
+    ports: ["8000:8000"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  worker:
+    <<: *python
+    command: ["geoapps-worker", "run"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  titiler:
+    image: ghcr.io/developmentseed/titiler:0.19.1
+    command: ["uvicorn", "titiler.application.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      GDAL_DISABLE_READDIR_ON_OPEN: EMPTY_DIR
+      GDAL_HTTP_MERGE_CONSECUTIVE_RANGES: "YES"
+      GDAL_HTTP_MULTIPLEX: "YES"
+      VSI_CACHE: "TRUE"
+    ports: ["8001:8000"]
+
+  web:
+    build: ./web
+    environment:
+      GEOAPPS_API_PROXY: http://api:8000
+    ports: ["5173:5173"]
+    depends_on: [api]
+
+volumes:
+  pgdata:

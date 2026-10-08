@@ -1,0 +1,24 @@
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# web
+web/node_modules/
+web/dist/
+
+# local instance
+geoapps.toml
+.env
+data/
+
+# editors / os
+.DS_Store
+.idea/
+.vscode/
+*.tsbuildinfo

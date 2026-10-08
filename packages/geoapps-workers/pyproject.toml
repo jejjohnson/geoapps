@@ -1,0 +1,26 @@
+[project]
+name = "geoapps-workers"
+version = "0.0.1"
+description = "Registered steps and the job runner: every computation in geoapps runs here."
+requires-python = ">=3.11"
+dependencies = [
+    "geoapps-core",
+    "geoapps-db",
+    "pydantic>=2.6",
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+# GeoStack enters through the science steps (retrieve, detect, quantify).
+# Pin your own forks or tags here; the API never imports these.
+geostack = []
+
+[project.scripts]
+geoapps-worker = "geoapps_workers.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/geoapps_workers"]

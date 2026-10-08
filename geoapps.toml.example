@@ -1,0 +1,35 @@
+# Instance configuration (workstream M). Copy to geoapps.toml and edit.
+# Code never hard-codes a catalog, bucket or licence; they all live here.
+
+name = "geoapps"
+# where the browser reaches titiler; GEOAPPS_TITILER_URL overrides it
+titiler_url = "http://localhost:8001"
+
+[storage]
+root = "file:///data/geoapps"
+
+[executors]
+default = "local"   # local | docker | batch (only local runs today)
+
+[auth]
+enabled = false     # deferred; X-Geoapps-User names the user until then
+
+# Public catalogs the explorer can search. mirror decides what an ingest keeps:
+#   reference = store the item and its hrefs only, crop = clip to the area, full = copy the scene.
+
+[[sources]]
+name = "earth-search"
+kind = "stac"
+url = "https://earth-search.aws.element84.com/v1"
+collections = ["sentinel-2-l2a"]
+mirror = "reference"
+licence = "Copernicus Sentinel data, free and open"
+description = "Sentinel-2 L2A COGs on AWS, via Element 84"
+
+# [[sources]]
+# name = "my-private-catalog"
+# kind = "stac"
+# url = "https://stac.example.org"
+# collections = ["my-collection"]
+# mirror = "crop"
+# licence = "internal"
