@@ -1,0 +1,29 @@
+name: probe
+on: { push: { branches: [probe/mars-csv] } }
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          set -x
+          for f in csv geojson; do
+            curl -sSL -o $f.zip https://unepazeconomyadlsstorage.blob.core.windows.net/public/unep_methanedata_detected_plumes_$f.zip
+            ls -la $f.zip; unzip -l $f.zip
+          done
+          mkdir c g; unzip -q csv.zip -d c; unzip -q geojson.zip -d g
+          for x in c/* c/*/*; do [ -f "$x" ] && { echo "== $x"; wc -l "$x"; head -c 1500 "$x"; echo; }; done
+          python3 - <<'PY'
+          import csv, glob, json, collections
+          for p in glob.glob("c/**/*.csv", recursive=True):
+              rows = list(csv.DictReader(open(p, encoding="utf-8-sig")))
+              print("FILE", p, len(rows)); print("COLS", list(rows[0].keys()))
+              for k in rows[0]:
+                  vals = [r[k] for r in rows]
+                  empty = sum(1 for v in vals if v in ("", "NA", "nan", "None"))
+                  c = collections.Counter(vals)
+                  print(f"  {k}: empty={empty} distinct={len(c)} sample={[v for v,_ in c.most_common(6)]}")
+          for p in glob.glob("g/**/*json", recursive=True):
+              d = json.load(open(p)); fs = d.get("features", [])
+              print("GEOJSON", p, len(fs), collections.Counter(f["geometry"]["type"] if f.get("geometry") else None for f in fs))
+              print(json.dumps(fs[0])[:1200] if fs else d.keys())
+          PY
