@@ -83,6 +83,8 @@ from geoapps_db.repo.review import (
     queue_priority,
     record_verdict,
     refresh_imported_detection,
+    relate_detections,
+    relations_for,
 )
 
 __all__ = [
@@ -135,6 +137,8 @@ __all__ = [
     "record_verdict",
     "refresh_imported_detection",
     "refresh_source_seen",
+    "relate_detections",
+    "relations_for",
     "register_dataset",
     "set_alert_state",
     "set_asset_role",

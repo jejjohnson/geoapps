@@ -129,7 +129,7 @@ def test_clear_look_bounds_and_splits_events(session):
             observed_at=day(d),
             valid_fraction=0.95,
             detection_id=det.id,
-            detection_limit_kg_h=200,
+            detection_limit=200,
         )
     for d in (-2, 7, 12):  # clear looks: before, between, after
         repo.add_observation(
@@ -137,7 +137,7 @@ def test_clear_look_bounds_and_splits_events(session):
             location_id=loc.id,
             observed_at=day(d),
             valid_fraction=0.9,
-            detection_limit_kg_h=200,
+            detection_limit=200,
         )
     repo.add_observation(
         session, location_id=loc.id, observed_at=day(3), valid_fraction=0.1
@@ -160,7 +160,7 @@ def test_clear_look_bounds_and_splits_events(session):
     assert (p["n_valid"], p["n_det"]) == (6, 3)  # the cloudy look does not count
     assert p["mean"] == pytest.approx(0.5)
     # looks that could not see a 100 kg/h plume say nothing about one
-    assert repo.persistence(session, loc.id, q_threshold_kg_h=100)["n_valid"] == 0
+    assert repo.persistence(session, loc.id, threshold=100)["n_valid"] == 0
 
 
 def test_location_lifecycle_is_history(session):
@@ -421,3 +421,103 @@ def test_a3_as_of_oracle(session):
         got = repo.who_for_source(session, src.id, at=day(float(d)))["operator"]["org"]
         wrong += got != expect
     assert wrong == 0
+
+
+def test_persistence_threshold_with_mixed_sensors(session):
+    """A coarse sensor's clear looks say nothing about plumes below its limit."""
+    src = repo.add_source(session, "S-1", -103.48, 31.87)
+    loc = repo.add_location(
+        session,
+        name="L",
+        by="t",
+        source_id=src.id,
+        area={
+            "type": "Polygon",
+            "coordinates": [
+                [[-103.49, 31.86], [-103.47, 31.86], [-103.47, 31.88], [-103.49, 31.86]]
+            ],
+        },
+    )
+    # fine sensor (limit 100 kg/h): 2 detections in 4 looks; coarse sensor (limit 5 t/h): 6 clear looks
+    for d in range(4):
+        det = plume(session, src.id, day(d), q=800) if d < 2 else None
+        repo.add_observation(
+            session,
+            location_id=loc.id,
+            observed_at=day(d),
+            valid_fraction=1.0,
+            detection_limit=100,
+            pixel_size_m=30,
+            detection_id=det.id if det else None,
+        )
+    for d in range(4, 10):
+        repo.add_observation(
+            session,
+            location_id=loc.id,
+            observed_at=day(d),
+            valid_fraction=1.0,
+            detection_limit=5000,
+            pixel_size_m=5500,
+        )
+    mixed = repo.persistence(session, loc.id)
+    at_800 = repo.persistence(session, loc.id, threshold=800)
+    assert (mixed["n_valid"], mixed["n_det"]) == (
+        10,
+        2,
+    )  # diluted by looks that could not see an 800 kg/h plume
+    assert (at_800["n_valid"], at_800["n_det"]) == (4, 2) and at_800["mean"] == pytest.approx(0.5)
+
+
+def test_coarse_detection_searches_wider(session):
+    """A source seen only at km scale proposes facilities km away; a fine one does not."""
+    fine = repo.add_source(session, "fine", -103.48, 31.87)
+    coarse = repo.add_source(session, "coarse", -103.30, 31.87)
+    near_fine = repo.add_facility(session, name="near fine", lon=-103.481, lat=31.871)
+    repo.add_facility(session, name="5 km from fine", lon=-103.427, lat=31.87)
+    near_coarse = repo.add_facility(session, name="8 km from coarse", lon=-103.215, lat=31.87)
+    repo.add_detection(
+        session,
+        kind="ch4_plume",
+        geometry=pt(-103.48, 31.87),
+        marks={"p": 0.9},
+        observed_at=day(0),
+        source_id=fine.id,
+        pixel_size_m=30,
+    )
+    repo.add_detection(
+        session,
+        kind="ch4_plume",
+        geometry=pt(-103.30, 31.87),
+        marks={"p": 0.9},
+        observed_at=day(0),
+        source_id=coarse.id,
+        pixel_size_m=5500,
+    )
+    assert [p["facility_id"] for p in repo.propose_source_facilities(session, fine.id)] == [
+        near_fine.id
+    ]
+    coarse_props = repo.propose_source_facilities(session, coarse.id)
+    assert near_coarse.id in [p["facility_id"] for p in coarse_props]
+    assert max(p["score"] for p in coarse_props) < 0.95  # spread, not certain
+
+
+def test_detections_relate_across_scales_without_merging(session):
+    src = repo.add_source(session, "S-1", -103.48, 31.87)
+    blob = plume(session, src.id, day(0), q=9000)
+    fine_a = plume(session, src.id, day(0), q=5000)
+    fine_b = plume(session, src.id, day(0), q=3500)
+    for f in (fine_a, fine_b):
+        repo.relate_detections(
+            session, blob.id, f.id, relation="contains", method="overlap", score=0.9
+        )
+    again = repo.relate_detections(
+        session, blob.id, fine_a.id, relation="contains", method="overlap"
+    )
+    rels = repo.relations_for(session, blob.id)
+    assert sorted(r["other_id"] for r in rels) == sorted([fine_a.id, fine_b.id])
+    assert {r["role"] for r in rels} == {"a"} and again.score == 0.9  # idempotent
+    assert repo.relations_for(session, fine_a.id)[0]["role"] == "b"
+    with pytest.raises(ValueError):
+        repo.relate_detections(session, blob.id, fine_a.id, relation="merged", method="x")
+    with pytest.raises(IntegrityError):
+        repo.relate_detections(session, blob.id, blob.id, relation="duplicate", method="x")

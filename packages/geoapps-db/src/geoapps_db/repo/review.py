@@ -13,6 +13,7 @@ from geoapps_core import Status, Verdict, get_kind, priority, status_after
 from geoapps_db.models import (
     Alert,
     Detection,
+    DetectionRelation,
     Label,
     LabelSet,
     LabelSetMember,
@@ -71,6 +72,7 @@ def add_detection(
     dataset_id: int | None = None,
     attrs: dict[str, Any] | None = None,
     supersedes_id: int | None = None,
+    pixel_size_m: float | None = None,
     run_id: int | None = None,
     now: datetime | None = None,
 ) -> Detection:
@@ -106,6 +108,7 @@ def add_detection(
         source_id=source_id,
         dataset_id=dataset_id,
         supersedes_id=supersedes_id,
+        pixel_size_m=pixel_size_m,
         run_id=run_id,
     )
     session.add(det)
@@ -128,6 +131,7 @@ def _detection_feature(d: Detection, g: dict, sensor: str | None) -> dict[str, A
             "source_id": d.source_id,
             "event_id": d.event_id,
             "dataset_id": d.dataset_id,
+            "pixel_size_m": d.pixel_size_m,
             **d.marks,
         },
     }
@@ -327,3 +331,56 @@ def detection_attr(session: Session, ids: list[int], key: str) -> dict[int, str 
             select(Detection.id, Detection.attrs[key].astext).where(Detection.id.in_(ids))
         ).all()
     )
+
+
+def relate_detections(
+    session: Session,
+    a_id: int,
+    b_id: int,
+    *,
+    relation: str,
+    method: str,
+    score: float | None = None,
+    decided_by: str | None = None,
+) -> DetectionRelation:
+    """Link two detections of one thing without merging them; each keeps its own scale and marks."""
+    from geoapps_db.models import RELATIONS
+
+    if relation not in RELATIONS:
+        raise ValueError(f"relation must be one of {RELATIONS}")
+    existing = session.scalar(
+        select(DetectionRelation).where(
+            DetectionRelation.a_id == a_id,
+            DetectionRelation.b_id == b_id,
+            DetectionRelation.relation == relation,
+        )
+    )
+    if existing is not None:
+        return existing
+    rel = DetectionRelation(
+        a_id=a_id, b_id=b_id, relation=relation, method=method, score=score, decided_by=decided_by
+    )
+    session.add(rel)
+    session.flush()
+    return rel
+
+
+def relations_for(session: Session, detection_id: int) -> list[dict[str, Any]]:
+    """Every relation a detection takes part in, read from its side (a or b)."""
+    rows = session.scalars(
+        select(DetectionRelation).where(
+            or_(DetectionRelation.a_id == detection_id, DetectionRelation.b_id == detection_id)
+        )
+    ).all()
+    return [
+        {
+            "id": r.id,
+            "relation": r.relation,
+            "role": "a" if r.a_id == detection_id else "b",  # in "contains", a is the coarser
+            "other_id": r.b_id if r.a_id == detection_id else r.a_id,
+            "method": r.method,
+            "score": r.score,
+            "decided_by": r.decided_by,
+        }
+        for r in rows
+    ]

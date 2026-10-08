@@ -69,7 +69,8 @@ def add_observation(
     location_id: int,
     observed_at: datetime,
     valid_fraction: float,
-    detection_limit_kg_h: float | None = None,
+    detection_limit: float | None = None,
+    pixel_size_m: float | None = None,
     sensor_id: int | None = None,
     scene_id: str | None = None,
     detection_id: int | None = None,
@@ -79,7 +80,8 @@ def add_observation(
         location_id=location_id,
         observed_at=observed_at,
         valid_fraction=valid_fraction,
-        detection_limit_kg_h=detection_limit_kg_h,
+        detection_limit=detection_limit,
+        pixel_size_m=pixel_size_m,
         sensor_id=sensor_id,
         scene_id=scene_id,
         detection_id=detection_id,
@@ -97,10 +99,15 @@ def persistence(
     start: datetime | None = None,
     end: datetime | None = None,
     min_valid_fraction: float = 0.5,
-    q_threshold_kg_h: float | None = None,
+    threshold: float | None = None,
 ) -> dict[str, Any]:
-    """P | data ~ Beta(1 + N_det, 1 + N_valid − N_det), over looks that could have seen the threshold."""
-    stmt = select(Observation.detection_id, Observation.detection_limit_kg_h).where(
+    """P(q) | data ~ Beta(1 + N_det, 1 + N_valid − N_det), over the looks able to see size q.
+
+    Without a threshold, every valid look counts, which mixes sensors of very different
+    sensitivity; with one, a look counts only if its detection limit L ≤ q (in the kind's
+    limit mark), so a site watched by a coarse sensor does not look less persistent.
+    """
+    stmt = select(Observation.detection_id, Observation.detection_limit).where(
         Observation.location_id == location_id, Observation.valid_fraction >= min_valid_fraction
     )
     if start:
@@ -108,12 +115,10 @@ def persistence(
     if end:
         stmt = stmt.where(Observation.observed_at < end)
     looks = session.execute(stmt).all()
-    if q_threshold_kg_h is not None:
-        # a look whose detection limit is above the threshold says nothing about plumes that size
+    if threshold is not None:
+        # a look whose detection limit is above the threshold says nothing about snapshots that size
         looks = [
-            lk
-            for lk in looks
-            if lk.detection_limit_kg_h is not None and lk.detection_limit_kg_h <= q_threshold_kg_h
+            lk for lk in looks if lk.detection_limit is not None and lk.detection_limit <= threshold
         ]
     n_valid = len(looks)
     n_det = sum(1 for lk in looks if lk.detection_id is not None)
@@ -126,7 +131,7 @@ def persistence(
         "mean": float(post.mean()),
         "p05": float(lo),
         "p95": float(hi),
-        "q_threshold_kg_h": q_threshold_kg_h,
+        "threshold": threshold,
     }
 
 

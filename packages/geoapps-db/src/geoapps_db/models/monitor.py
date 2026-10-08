@@ -54,7 +54,11 @@ class LocationStatus(IdMixin, CreatedMixin, Base):
 
 
 class Observation(IdMixin, CreatedMixin, Base):
-    """One look at one location: how much was valid and the smallest plume it could see."""
+    """One look at one location: how much was valid, how fine it was, and the smallest snapshot it could see.
+
+    ``detection_limit`` is in the kind's limit mark (kg/h for plumes), so persistence can count
+    only the looks able to see a given size, whatever mix of sensors made them.
+    """
 
     __tablename__ = "observation"
     __table_args__ = (
@@ -69,7 +73,8 @@ class Observation(IdMixin, CreatedMixin, Base):
     scene_id: Mapped[str | None] = mapped_column(String(256))
     observed_at: Mapped[datetime] = mapped_column(Timestamp, index=True)
     valid_fraction: Mapped[float] = mapped_column(Float)
-    detection_limit_kg_h: Mapped[float | None] = mapped_column(Float)
+    detection_limit: Mapped[float | None] = mapped_column(Float)
+    pixel_size_m: Mapped[float | None] = mapped_column(Float)
     detection_id: Mapped[int | None] = mapped_column(ForeignKey("review.detection.id"))
     run_id: Mapped[int | None] = mapped_column(ForeignKey("core.run.id"))
 

@@ -43,6 +43,11 @@ def list_sensors(session: Session) -> list[dict[str, Any]]:
             "platform": s.platform,
             "agency": s.agency,
             "sensor_type": s.sensor_type,
+            "gsd_m": s.gsd_m,
+            "revisit_days": s.revisit_days,
+            "overpass_local_time": s.overpass_local_time,
+            "n_bands": s.n_bands,
+            "detection_limits": s.detection_limits,
             "n_detections": int(k),
         }
         for s, k in rows

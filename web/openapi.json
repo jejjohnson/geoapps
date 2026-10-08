@@ -314,6 +314,50 @@
         }
       }
     },
+    "/api/detections/{detection_id}/relations": {
+      "get": {
+        "summary": "Detection Relations",
+        "description": "Detections of the same thing at other scales or by other sensors, kept as separate rows.",
+        "operationId": "detection_relations_api_detections__detection_id__relations_get",
+        "parameters": [
+          {
+            "name": "detection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Detection Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RelationOut"
+                  },
+                  "title": "Response Detection Relations Api Detections  Detection Id  Relations Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/sources": {
       "get": {
         "summary": "Sources",
@@ -1930,6 +1974,73 @@
         ],
         "title": "Proposal"
       },
+      "RelationOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "relation": {
+            "type": "string",
+            "enum": [
+              "same_moment",
+              "contains",
+              "duplicate"
+            ],
+            "title": "Relation"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "a",
+              "b"
+            ],
+            "title": "Role",
+            "description": "In \"contains\", a is the coarser detection"
+          },
+          "other_id": {
+            "type": "integer",
+            "title": "Other Id"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "relation",
+          "role",
+          "other_id",
+          "method",
+          "score",
+          "decided_by"
+        ],
+        "title": "RelationOut"
+      },
       "SensorOut": {
         "properties": {
           "id": {
@@ -1973,6 +2084,59 @@
             ],
             "title": "Sensor Type"
           },
+          "gsd_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gsd M",
+            "description": "Nominal ground sampling distance, m"
+          },
+          "revisit_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revisit Days"
+          },
+          "overpass_local_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overpass Local Time"
+          },
+          "n_bands": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Bands"
+          },
+          "detection_limits": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Detection Limits",
+            "description": "Nominal limit per kind, in its limit mark"
+          },
           "n_detections": {
             "type": "integer",
             "title": "N Detections"
@@ -1985,6 +2149,11 @@
           "platform",
           "agency",
           "sensor_type",
+          "gsd_m",
+          "revisit_days",
+          "overpass_local_time",
+          "n_bands",
+          "detection_limits",
           "n_detections"
         ],
         "title": "SensorOut"

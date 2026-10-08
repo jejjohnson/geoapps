@@ -158,16 +158,17 @@ It needs observations, including the ones that found nothing. A detections-only 
 
 ### ref
 
-- `sensor`: id, name, platform, agency, sensor_type, gsd_m
+- `sensor`: id, name, platform, agency, sensor_type, gsd_m, revisit_days, overpass_local_time, n_bands, detection_limits (nominal, per kind)
 - `source`: id, name, event_kind, source_type, sector, country, point, status, first_seen, last_seen, attrs
 - `facility`: id, name, facility_type, sector, country, geometry, status, valid, attrs
 - `xref`: entity, entity_id, provider, record_id, match_score; unique per (provider, entity, record_id)
 
 ### review
 
-- `detection`: id, kind, status, sensor_id, source_id, event_id, dataset_id, scene_id, observed_at, geometry (outline or point), origin, marks, priority, supersedes_id, run_id
+- `detection`: id, kind, status, sensor_id, source_id, event_id, dataset_id, scene_id, observed_at, geometry (outline or point), origin, marks, priority, pixel_size_m, supersedes_id, run_id
 - `label`: id, detection_id, scene_id, geometry, verdict, analyst, note
 - `label_set`: id, name, frozen_at, filter, n_labels
+- `detection_relation`: a_id, b_id, relation (same_moment, contains, duplicate), method, score, decided_by
 - `label_set_member`: label_set_id, label_id
 
 ### attribution
@@ -184,7 +185,7 @@ It needs observations, including the ones that found nothing. A detections-only 
 
 - `location`: id, name, area, status, source_id, facility_id, sensors, revisit_days
 - `location_status`: location_id, status, at, by, reason (one row per transition)
-- `observation`: id, location_id, sensor_id, scene_id, observed_at, valid_fraction, detection_limit_kg_h, detection_id, run_id
+- `observation`: id, location_id, sensor_id, scene_id, observed_at, valid_fraction, detection_limit (in the kind's limit mark), pixel_size_m, detection_id, run_id
 - `event`: id, kind, source_id, location_id, t_a, t_b, t_c, t_d, status, n_detections, q_mean_kg_h, q_sigma_kg_h, run_id
 
 ### notify
@@ -234,9 +235,62 @@ The README's analysis component (how often and how much) needs one more schema, 
 - `geo.region`: id, name, region_type (basin, state, country, continent, world), geometry, parent, government org; valid over time.
 - `geo.source_region`: source, region; derived from the source's location, rebuilt when boundaries change. Regions are spatial: a source counts toward its regions whether or not it was ever attributed.
 - `analysis.group`, `analysis.group_member`: any set of sources or facilities (a company portfolio, a cluster); groups may overlap and are always summed from sources.
-- `analysis.estimate`: entity type and id, window, kind, quantity (occurrence or total), threshold, versions, percentiles (5th, 50th, 95th), coverage, number of events, run.
+- `analysis.estimate`: entity type and id, window, kind, quantity (occurrence or total), level (source-up from detections, or region-down from a coarse product, §12), threshold, contributing sensors, versions, percentiles (5th, 50th, 95th), coverage, number of events, run.
 - `analysis.samples`: the Monte Carlo samples behind each source's estimate, stored as Parquet beside the run, not in Postgres; the row in `analysis.estimate` points at them.
 - `analysis.reported`: what an asset or a region reported for the same window, with its source document, for comparison.
 
 A reanalysis writes a new run and new estimates; old estimates stay, so a version comparison is a query.
+
+## 12. Scales
+
+Sensors differ in spatial, temporal and spectral resolution at once, and every one of them changes what a row means: a 5.5 km TROPOMI pixel, a 20 m Sentinel-2 pixel and a 30 m hyperspectral pixel do not see the same plumes, the same sources, or the same number of times. geoapps does not resample anything to a common scale. It stores every row at its native scale, records that scale on the row, and only combines scales in analysis, explicitly.
+
+```
+SENSOR          nominal scale: ground sampling distance,
+  │             revisit, overpass time, bands, and a
+  │             nominal detection limit per kind
+  │ makes
+  ▼
+OBSERVATION     one look's actual scale: pixel size,
+  │             valid fraction, detection limit L
+  │ may hold
+  ▼
+DETECTION       seen at one pixel size; never merged
+  │             with detections at other scales
+  │ related to others by
+  ▼
+RELATION        same_moment · contains · duplicate
+  │
+  ▼
+ESTIMATE        names its level, threshold, sensors
+                and coverage
+```
+
+**The detection limit is the scale that matters most.** Each kind names a `limit_mark`, the mark a detection limit is expressed in (`q_kg_h` for plumes). A look with limit L could have seen any snapshot with that mark ≥ L. Persistence is then defined per size q, over the looks able to see it:
+
+```
+# Shapes: N looks at one location; each with limit Lₙ and an indicator dₙ ∈ {0, 1}
+# 𝒩(q) = {n : Lₙ ≤ q}                                   looks able to see size q
+# P(q) | data ~ Beta(1 + ∑_{n∈𝒩(q)} dₙ, 1 + |𝒩(q)| − ∑_{n∈𝒩(q)} dₙ)
+```
+
+Without the threshold, the clear looks of a coarse sensor dilute the count, and a site watched by many coarse passes looks less persistent than it is (tested: `test_persistence_threshold_with_mixed_sensors`).
+
+**Attribution scales with the pixel.** A detection cannot be located more finely than a few pixels, so the attribution length scale ℓ and search radius r follow the finest pixel Δx among the source's detections:
+
+```
+# ℓ = max(ℓ_min, a Δx),  r = max(r_min, b Δx)            defaults ℓ_min = 500 m, r_min = 2 km, a = 2, b = 6
+```
+
+A 30 m plume keeps the defaults and points at a well pad; a 5.5 km blob searches ~33 km and spreads its probability across many facilities. Its honest answer is often a group or a region, not one facility.
+
+**One thing at two scales is two rows and a relation.** TROPOMI sees a blob over a basin; a week later EMIT resolves two plumes inside it. These are three detections, each with its own marks and pixel size, linked by `contains` (a = the coarser). `same_moment` links one look by two sensors minutes apart; `duplicate` links the same snapshot from two providers. Nothing is averaged or merged in the database.
+
+**Estimates have a level, and levels are compared, not added.** A total built up from fine-scale sources (bottom-up) and a regional total from a coarse product or an inversion (top-down) answer different questions with different coverage. Each `analysis.estimate` records its level, threshold, contributing sensors and coverage; a report may set them side by side, never sum them.
+
+**Time sampling is a scale too.** Sun-synchronous sensors look at fixed local times (around 10:30 for Sentinel-2, 13:30 for TROPOMI), so a time-averaged rate from them assumes the snapshot is representative of the day. `sensor.overpass_local_time` keeps that assumption visible; a diurnal correction, if any, belongs to the analysis step that uses it.
+
+**Other kinds have the same issue.** Flood extents from 10 m radar and 250 m optical differ along every edge; return periods from a 1 km radar grid are more extreme than from a 10 km satellite product. Rain estimates therefore record their grid as part of the threshold, and flood snapshots their pixel size.
+
+**What is in the schema now, and what waits.** Pixel size on observations and detections, the sensor's scale fields, the renamed `detection_limit`, `limit_mark` on kinds, `detection_relation` and the scaled attribution radius exist (migration 0003). Detection probability as a curve π_k(q) per sensor rather than a single limit, fusion across scales, and top-down inversions are science for analysis jobs and xtremax's thinned point process, not schema.
 

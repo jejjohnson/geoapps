@@ -154,6 +154,12 @@ def verdict(detection_id: int, body: S.VerdictIn, session: DB, user: User):
     return S.VerdictOut(label_id=res.label_id, status=res.status, alerts_raised=res.alerts_raised)
 
 
+@app.get("/api/detections/{detection_id}/relations", response_model=list[S.RelationOut])
+def detection_relations(detection_id: int, session: DB):
+    """Detections of the same thing at other scales or by other sensors, kept as separate rows."""
+    return repo.relations_for(session, detection_id)
+
+
 @app.get("/api/sources", response_model=S.FeatureCollection)
 def sources(session: DB):
     return repo.sources_geojson(session)

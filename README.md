@@ -41,11 +41,12 @@ LOOK            every clear look, with or without a
                 ESTIMATE occurrence
 ```
 
-And underneath, three things that are easy to get wrong:
+And underneath, four things that are easy to get wrong:
 
 - **Non-detections matter.** "How often does this happen here?" needs every clear look that found nothing, not only the detections.
 - **The world changes.** Who operates a site, which unit a region reports under, which registry names it: all valid over time, and answers depend on the date.
 - **Methods change.** Models are retrained, products reprocessed and datasets revised; every row has to say which data and versions produced it, and human labels must survive reprocessing.
+- **Scales differ.** Sensors resolve different sizes, revisit at different rates and see different spectra, so the same thing seen twice can be two different-looking rows. Every row keeps its native scale and its detection limit, and scales are combined only in analysis, explicitly ([data model §12](docs/design/03-data-model.md#12-scales)).
 
 ## Analysis: how often and how much
 
@@ -59,11 +60,12 @@ Events answer "what happened"; most questions people ask are about a window of t
 | Heavy rain | exceedances of a return-period threshold | rain volume over a basin |
 | Tropical cyclones | landfalls per region | accumulated cyclone energy |
 
-Three rules keep the numbers honest, whatever the kind:
+Four rules keep the numbers honest, whatever the kind:
 
-- **Occurrence needs the looks that found nothing.** A dataset of detections alone gives events but no persistence.
+- **Occurrence needs the looks that found nothing, and is defined per size.** A dataset of detections alone gives events but no persistence, and a look counts only toward sizes above its detection limit.
 - **Totals carry their uncertainty as samples.** Each estimate keeps Monte Carlo samples, so totals for a facility, an operator or a region are sums of samples, not sums of intervals, and any new grouping can be computed later.
 - **Totals are lower bounds on what was observable.** They count what was above the detection limit, at places and times that were seen; each one reports its threshold and its coverage.
+- **Estimates at different scales are compared, not added.** A total built up from fine-scale sources and a regional total from a coarse product answer different questions; each estimate names its level.
 
 Estimates are precomputed by jobs, stored with the versions that produced them, and read by apps 3 and 4: a watch can fire when persistence crosses a threshold, and app 4 compares totals against reported figures.
 

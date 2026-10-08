@@ -5,6 +5,7 @@ directly onto a rule or gate in docs/design/01-design-plan.md.
 """
 
 from geoapps_core.attribution import (
+    attribution_scale,
     bearing_deg,
     candidate_probabilities,
     haversine_m,
@@ -29,6 +30,7 @@ __all__ = [
     "Status",
     "Verdict",
     "alert_mask",
+    "attribution_scale",
     "bearing_deg",
     "bounds",
     "candidate_probabilities",

@@ -60,6 +60,9 @@ class EventKind:
     entities: tuple[str, ...]  # node types it may be attributed to
     validation: Validation = "per_snapshot"
     publish: PublishPolicy = field(default_factory=PublishPolicy)
+    # the mark a look's detection limit is expressed in (e.g. q_kg_h): a look with limit L
+    # could have seen any snapshot whose limit_mark ≥ L, which is what persistence counts
+    limit_mark: str | None = None
 
     def validate_marks(self, marks: dict) -> dict:
         """Raise pydantic.ValidationError if the marks do not fit this kind; drop unset fields."""
@@ -102,5 +105,6 @@ CH4_PLUME = register_kind(
         marks=PlumeMarks,
         link="same_source",
         entities=("source", "facility", "asset", "operator", "government"),
+        limit_mark="q_kg_h",
     )
 )

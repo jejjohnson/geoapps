@@ -54,3 +54,18 @@ def test_unquantified_plume_and_point_geometry_allowed():
     assert CH4_PLUME.accepts_geometry("Point")
     assert CH4_PLUME.accepts_geometry("MultiPolygon")
     assert not CH4_PLUME.accepts_geometry("LineString")
+
+
+def test_attribution_scale_follows_pixel_size():
+    from geoapps_core import attribution_scale
+
+    # fine sensors keep the floor; a 5.5 km pixel searches tens of km
+    assert attribution_scale(None) == (500.0, 2000.0)
+    assert attribution_scale(30.0) == (500.0, 2000.0)
+    ell, radius = attribution_scale(5500.0)
+    assert (ell, radius) == (11_000.0, 33_000.0)
+
+
+def test_kind_names_its_limit_mark():
+    assert CH4_PLUME.limit_mark == "q_kg_h"
+    assert CH4_PLUME.limit_mark in CH4_PLUME.marks.model_fields

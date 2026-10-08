@@ -123,6 +123,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/detections/{detection_id}/relations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Detection Relations
+         * @description Detections of the same thing at other scales or by other sensors, kept as separate rows.
+         */
+        get: operations["detection_relations_api_detections__detection_id__relations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sources": {
         parameters: {
             query?: never;
@@ -689,6 +709,30 @@ export interface components {
             /** Distance M */
             distance_m: number;
         };
+        /** RelationOut */
+        RelationOut: {
+            /** Id */
+            id: number;
+            /**
+             * Relation
+             * @enum {string}
+             */
+            relation: "same_moment" | "contains" | "duplicate";
+            /**
+             * Role
+             * @description In "contains", a is the coarser detection
+             * @enum {string}
+             */
+            role: "a" | "b";
+            /** Other Id */
+            other_id: number;
+            /** Method */
+            method: string;
+            /** Score */
+            score: number | null;
+            /** Decided By */
+            decided_by: string | null;
+        };
         /** SensorOut */
         SensorOut: {
             /** Id */
@@ -701,6 +745,24 @@ export interface components {
             agency: string | null;
             /** Sensor Type */
             sensor_type: string | null;
+            /**
+             * Gsd M
+             * @description Nominal ground sampling distance, m
+             */
+            gsd_m: number | null;
+            /** Revisit Days */
+            revisit_days: number | null;
+            /** Overpass Local Time */
+            overpass_local_time: string | null;
+            /** N Bands */
+            n_bands: number | null;
+            /**
+             * Detection Limits
+             * @description Nominal limit per kind, in its limit mark
+             */
+            detection_limits: {
+                [key: string]: number;
+            };
             /** N Detections */
             n_detections: number;
         };
@@ -1051,6 +1113,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VerdictOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    detection_relations_api_detections__detection_id__relations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                detection_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelationOut"][];
                 };
             };
             /** @description Validation Error */

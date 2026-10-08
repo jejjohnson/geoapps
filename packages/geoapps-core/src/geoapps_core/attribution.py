@@ -44,6 +44,24 @@ def wind_to_deg(u: ArrayLike, v: ArrayLike) -> NDArray:
     return np.degrees(np.arctan2(np.asarray(u, dtype=float), np.asarray(v, dtype=float))) % 360.0
 
 
+def attribution_scale(
+    pixel_size_m: float | None,
+    *,
+    ell_min_m: float = 500.0,
+    radius_min_m: float = 2000.0,
+    ell_pixels: float = 2.0,
+    radius_pixels: float = 6.0,
+) -> tuple[float, float]:
+    """Length scale ℓ and search radius r for attribution, scaled to the detection's pixel size.
+
+    ℓ = max(ℓ_min, a · Δx),  r = max(r_min, b · Δx)
+    A detection cannot be located more finely than a few pixels, so a km-scale snapshot
+    searches km-scale neighbourhoods and spreads its probability over many candidates.
+    """
+    dx = pixel_size_m or 0.0
+    return max(ell_min_m, ell_pixels * dx), max(radius_min_m, radius_pixels * dx)
+
+
 def candidate_weights(
     distance_m: ArrayLike,
     bearing_to_origin_deg: ArrayLike,

@@ -23,12 +23,22 @@ from geoapps_db.models.core import JOB_STATES, Assertion, Dataset, Etl, Job, Run
 from geoapps_db.models.monitor import Event, Location, LocationStatus, Observation
 from geoapps_db.models.notify import ALERT_STATES, Alert, Feedback, Outbox, Watch
 from geoapps_db.models.ref import Facility, Sensor, Source, Xref
-from geoapps_db.models.review import STATUSES, VERDICTS, Detection, Label, LabelSet, LabelSetMember
+from geoapps_db.models.review import (
+    RELATIONS,
+    STATUSES,
+    VERDICTS,
+    Detection,
+    DetectionRelation,
+    Label,
+    LabelSet,
+    LabelSetMember,
+)
 
 __all__ = [
     "ALERT_STATES",
     "JOB_STATES",
     "NAMING",
+    "RELATIONS",
     "ROLES",
     "SCHEMAS",
     "STATUSES",
@@ -39,6 +49,7 @@ __all__ = [
     "Base",
     "Dataset",
     "Detection",
+    "DetectionRelation",
     "Etl",
     "Event",
     "Facility",

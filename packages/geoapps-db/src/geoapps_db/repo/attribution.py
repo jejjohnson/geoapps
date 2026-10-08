@@ -6,11 +6,17 @@ from typing import Any
 import numpy as np
 from geoalchemy2 import Geography
 from geoalchemy2 import functions as gf
-from sqlalchemy import cast, select
+from sqlalchemy import cast, func, select
 from sqlalchemy.dialects.postgresql import TIMESTAMP, Range
 from sqlalchemy.orm import Session
 
-from geoapps_core import bearing_deg, candidate_probabilities, haversine_m, wind_to_deg
+from geoapps_core import (
+    attribution_scale,
+    bearing_deg,
+    candidate_probabilities,
+    haversine_m,
+    wind_to_deg,
+)
 from geoapps_db.models import (
     Asset,
     Detection,
@@ -38,8 +44,8 @@ def propose_source_facilities(
     session: Session,
     source_id: int,
     *,
-    radius_m: float = 2000.0,
-    ell: float = 500.0,
+    radius_m: float | None = None,
+    ell: float | None = None,
     kappa: float = 4.0,
     w0: float = 0.05,
     run_id: int | None = None,
@@ -48,7 +54,19 @@ def propose_source_facilities(
 
     Wind comes from the source's most recent detection that carries u and v; with no
     wind the alignment term is dropped (κ = 0) and distance alone ranks candidates.
+
+    The search radius r and length scale ℓ follow the scale of the source's finest
+    detection (``attribution_scale``): a source seen only at km scale searches km-scale
+    neighbourhoods and spreads its probability over more candidates.
     """
+    finest = session.scalar(
+        select(func.min(Detection.pixel_size_m)).where(
+            Detection.source_id == source_id, Detection.status != "rejected"
+        )
+    )
+    ell_auto, radius_auto = attribution_scale(finest)
+    ell = ell if ell is not None else ell_auto
+    radius_m = radius_m if radius_m is not None else radius_auto
     row = session.execute(
         select(gf.ST_X(Source.geom), gf.ST_Y(Source.geom)).where(Source.id == source_id)
     ).first()

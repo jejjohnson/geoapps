@@ -4,7 +4,16 @@ from datetime import datetime
 from typing import Any
 
 from geoalchemy2 import Geometry
-from sqlalchemy import BigInteger, CheckConstraint, Float, Index, String, Text, UniqueConstraint
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    Float,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -23,8 +32,20 @@ class Sensor(IdMixin, CreatedMixin, Base):
     name: Mapped[str] = mapped_column(String(128), unique=True)  # as the provider names it
     platform: Mapped[str | None] = mapped_column(String(128))
     agency: Mapped[str | None] = mapped_column(String(128))
-    sensor_type: Mapped[str | None] = mapped_column(String(64))  # hyperspectral, multispectral, ...
-    gsd_m: Mapped[float | None] = mapped_column(Float)
+    sensor_type: Mapped[str | None] = mapped_column(
+        String(64)
+    )  # hyperspectral, multispectral, sar, ...
+    # scale: what one look can resolve, how often it comes back, and what it can see
+    gsd_m: Mapped[float | None] = mapped_column(Float)  # nominal ground sampling distance
+    revisit_days: Mapped[float | None] = mapped_column(Float)  # nominal; None when irregular (ISS)
+    overpass_local_time: Mapped[str | None] = mapped_column(
+        String(5)
+    )  # "13:30"; None when not sun-synchronous
+    n_bands: Mapped[int | None] = mapped_column(Integer)
+    # nominal detection limit per event kind, in that kind's limit mark: {"ch4_plume": 1000.0}
+    detection_limits: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default="{}"
+    )
 
 
 class Source(IdMixin, CreatedMixin, Base):

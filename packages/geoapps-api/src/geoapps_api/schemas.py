@@ -134,7 +134,24 @@ class SensorOut(BaseModel):
     platform: str | None
     agency: str | None
     sensor_type: str | None
+    gsd_m: float | None = Field(description="Nominal ground sampling distance, m")
+    revisit_days: float | None
+    overpass_local_time: str | None
+    n_bands: int | None
+    detection_limits: dict[str, float] = Field(
+        description="Nominal limit per kind, in its limit mark"
+    )
     n_detections: int
+
+
+class RelationOut(BaseModel):
+    id: int
+    relation: Literal["same_moment", "contains", "duplicate"]
+    role: Literal["a", "b"] = Field(description='In "contains", a is the coarser detection')
+    other_id: int
+    method: str
+    score: float | None
+    decided_by: str | None
 
 
 class EventOut(BaseModel):

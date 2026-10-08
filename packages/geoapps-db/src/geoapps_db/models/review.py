@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any
 
 from geoalchemy2 import Geometry
-from sqlalchemy import CheckConstraint, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import CheckConstraint, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -16,6 +16,7 @@ from geoapps_db.models.base import Base, CreatedMixin, IdMixin, Timestamp, _in
 
 STATUSES = ("predicted", "validated", "rejected")
 VERDICTS = ("confirm", "redraw", "reject")
+RELATIONS = ("same_moment", "contains", "duplicate")
 
 
 class Detection(IdMixin, CreatedMixin, Base):
@@ -41,6 +42,7 @@ class Detection(IdMixin, CreatedMixin, Base):
     marks: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
     attrs: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
     priority: Mapped[float] = mapped_column(Float, default=0.0, server_default="0", index=True)
+    pixel_size_m: Mapped[float | None] = mapped_column(Float)  # the scale it was seen at
     supersedes_id: Mapped[int | None] = mapped_column(ForeignKey("review.detection.id"))
     run_id: Mapped[int | None] = mapped_column(ForeignKey("core.run.id"))
 
@@ -64,6 +66,34 @@ class Label(IdMixin, CreatedMixin, Base):
     note: Mapped[str | None] = mapped_column(Text)
 
     detection: Mapped[Detection | None] = relationship(back_populates="labels")
+
+
+class DetectionRelation(IdMixin, CreatedMixin, Base):
+    """Two detections of one thing at different scales or by different sensors, kept apart.
+
+    same_moment  one look seen by two sensors minutes apart (an observation group)
+    contains     a coarse detection (a) holds a finer one (b): TROPOMI blob → EMIT plume
+    duplicate    the same snapshot from two providers
+    """
+
+    __tablename__ = "detection_relation"
+    __table_args__ = (
+        CheckConstraint(_in("relation", RELATIONS), name="relation"),
+        CheckConstraint("a_id <> b_id", name="distinct"),
+        UniqueConstraint("a_id", "b_id", "relation"),
+        {"schema": "review"},
+    )
+
+    a_id: Mapped[int] = mapped_column(
+        ForeignKey("review.detection.id", ondelete="CASCADE"), index=True
+    )
+    b_id: Mapped[int] = mapped_column(
+        ForeignKey("review.detection.id", ondelete="CASCADE"), index=True
+    )
+    relation: Mapped[str] = mapped_column(String(16))
+    method: Mapped[str] = mapped_column(String(64))  # "overlap", "analyst", "provider", ...
+    score: Mapped[float | None] = mapped_column(Float)
+    decided_by: Mapped[str | None] = mapped_column(String(128))
 
 
 class LabelSet(IdMixin, CreatedMixin, Base):

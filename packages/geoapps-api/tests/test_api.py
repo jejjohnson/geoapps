@@ -25,6 +25,7 @@ def test_openapi_contract_lists_routes():
         "/api/events",
         "/api/datasets",
         "/api/attributions/{link_id}",
+        "/api/detections/{detection_id}/relations",
     ):
         assert p in paths
 
