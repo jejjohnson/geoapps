@@ -26,10 +26,19 @@ EVENT           one episode, start and end
   ▼
 ENTITY          the place, site or organization
   │             behind it, valid over time
+  │ summarized over a window as
+  ▼
+ESTIMATE        how often and how much: occurrence
+  │             (e.g. persistence) and totals, with
+  │             uncertainty, rolled up to any entity
   │ watched by
   ▼
 ALERT           someone who cares is told;
                 their feedback becomes labels
+
+LOOK            every clear look, with or without a
+                detection, feeds EVENT bounds and
+                ESTIMATE occurrence
 ```
 
 And underneath, three things that are easy to get wrong:
@@ -37,6 +46,28 @@ And underneath, three things that are easy to get wrong:
 - **Non-detections matter.** "How often does this happen here?" needs every clear look that found nothing, not only the detections.
 - **The world changes.** Who operates a site, which unit a region reports under, which registry names it: all valid over time, and answers depend on the date.
 - **Methods change.** Models are retrained, products reprocessed and datasets revised; every row has to say which data and versions produced it, and human labels must survive reprocessing.
+
+## Analysis: how often and how much
+
+Events answer "what happened"; most questions people ask are about a window of time: how often does this happen here, how much did it add up to, and is it changing? The analysis component answers them for every kind, from validated events and from every clear look:
+
+| Kind | How often | How much |
+|---|---|---|
+| Trace-gas plumes | persistence: the share of valid looks with a plume | total mass emitted, and the time-averaged rate |
+| Oil spills | recurrence along a route or around a platform | total volume spilled |
+| Floods | how often a basin floods | flooded area × days, people × days exposed |
+| Heavy rain | exceedances of a return-period threshold | rain volume over a basin |
+| Tropical cyclones | landfalls per region | accumulated cyclone energy |
+
+Three rules keep the numbers honest, whatever the kind:
+
+- **Occurrence needs the looks that found nothing.** A dataset of detections alone gives events but no persistence.
+- **Totals carry their uncertainty as samples.** Each estimate keeps Monte Carlo samples, so totals for a facility, an operator or a region are sums of samples, not sums of intervals, and any new grouping can be computed later.
+- **Totals are lower bounds on what was observable.** They count what was above the detection limit, at places and times that were seen; each one reports its threshold and its coverage.
+
+Estimates are precomputed by jobs, stored with the versions that produced them, and read by apps 3 and 4: a watch can fire when persistence crosses a threshold, and app 4 compares totals against reported figures.
+
+**Reanalysis is not the same thing.** Analysis computes estimates from what is in the database; reanalysis reruns the archive under a new version tuple (a new model, a new wind product, a new label set) and writes new detections, events and estimates beside the old ones, so the change is something you can compare. It is one of the three scheduled pipeline families: discovery finds new events, monitoring revisits known places and records every look, and reanalysis or backfill recomputes the past.
 
 ## Four apps on one platform
 
@@ -108,7 +139,9 @@ Registered steps:
 
 The map has three basemaps: streets (OpenFreeMap), imagery (EOX Sentinel-2 cloudless) and an offline Natural Earth 1:10m map served by the app itself, with coasts, country and state lines, rivers, lakes, highways, urban areas and place names. If a remote basemap can't be reached, the map falls back to the offline one. `web/scripts/build-basemap.mjs` rebuilds the offline layers from Natural Earth (public domain) and Noto Sans glyphs (SIL OFL).
 
-Not built yet, in the order the design plan's roadmap takes them: redrawing a detection on the map, an entity inventory import, the ingest half of the catalog explorer, pgSTAC and Zarr through titiler.xarray, monitoring pipelines that record observations, the notebook client, GeoParquet exports, scheduled pipelines, outbound notifications and auth.
+Of the analysis component, the persistence posterior per location and each event's rate when emitting exist; totals, roll-ups over entities and regions, and their Monte Carlo samples do not yet.
+
+Not built yet, in the order the design plan's roadmap takes them: redrawing a detection on the map, an entity inventory import, the ingest half of the catalog explorer, pgSTAC and Zarr through titiler.xarray, monitoring pipelines that record observations, the analysis jobs (totals, roll-ups and samples), the notebook client, GeoParquet exports, scheduled pipelines (discovery, monitoring, reanalysis), outbound notifications and auth.
 
 ## Quickstart with Docker
 

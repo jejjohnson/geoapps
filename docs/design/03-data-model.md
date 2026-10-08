@@ -216,5 +216,27 @@ An analyst confirms it: one `review.label` row, status `validated`, and any watc
 
 - pgSTAC scenes in place of scene ids
 - plume groups (one moment seen by two sensors) between detection and event
-- regions and roll-ups with Monte Carlo samples (framework page 6)
+- regions and roll-ups with Monte Carlo samples (framework page 6; planned tables in §11)
 - the notification state machine to operators and governments
+
+## 11. Planned: the analysis schema
+
+The README's analysis component (how often and how much) needs one more schema, `analysis`, written only by analysis jobs and never edited by hand. It follows the extreme-events framework, page 6.
+
+```
+# Shapes: one source s; one window W; S Monte Carlo samples
+# M_s(W) = ∑ₑ Q̄ₑ fₑ D_eᵂ          total over W from the source's events
+#   Q̄ₑ  rate when emitting       fₑ  duty cycle inside the event
+#   D_eᵂ the part of the event's duration inside W
+# M_X(W) = ∑_{s ∈ X} M_s(W)       any set X of sources, summed sample by sample, (S,) per source → (S,)
+```
+
+- `geo.region`: id, name, region_type (basin, state, country, continent, world), geometry, parent, government org; valid over time.
+- `geo.source_region`: source, region; derived from the source's location, rebuilt when boundaries change. Regions are spatial: a source counts toward its regions whether or not it was ever attributed.
+- `analysis.group`, `analysis.group_member`: any set of sources or facilities (a company portfolio, a cluster); groups may overlap and are always summed from sources.
+- `analysis.estimate`: entity type and id, window, kind, quantity (occurrence or total), threshold, versions, percentiles (5th, 50th, 95th), coverage, number of events, run.
+- `analysis.samples`: the Monte Carlo samples behind each source's estimate, stored as Parquet beside the run, not in Postgres; the row in `analysis.estimate` points at them.
+- `analysis.reported`: what an asset or a region reported for the same window, with its source document, for comparison.
+
+A reanalysis writes a new run and new estimates; old estimates stay, so a version comparison is a query.
+
